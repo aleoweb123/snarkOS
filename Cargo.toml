@@ -32,6 +32,7 @@ members = [
     "node/rest",
     "node/router",
     "node/tcp",
+    "tx_generator",
     ".integration",
 ]
 

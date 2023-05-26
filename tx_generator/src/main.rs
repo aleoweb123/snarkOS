@@ -70,15 +70,15 @@ async fn main() {
     info!("Preparing an instance of consensus that can generate transactions.");
 
     // Initialize the beacon private key.
-    let genesis_private_key = PrivateKey::<CurrentNetwork>::from_str(&private_key).unwrap();
-    let genesis_view_key = ViewKey::try_from(&genesis_private_key).unwrap();
-    let genesis_address = Address::try_from(&genesis_private_key).unwrap();
+    let creator_private_key = PrivateKey::<CurrentNetwork>::from_str(&private_key).unwrap();
+    let creator_view_key = ViewKey::try_from(&creator_private_key).unwrap();
     // Initialize the genesis block.
     let genesis = Block::from_bytes_le(Testnet3::genesis_bytes()).unwrap();
 
     // Initialize the consensus to generate transactions.
     let ledger = CurrentLedger::load(genesis, None).unwrap();
     let consensus = CurrentConsensus::new(ledger, false).unwrap();
+    let genesis_address: Address<Testnet3> = *consensus.beacons().keys().next().unwrap();
 
     // Create the initial block or start producing transactions.
     if arg == EXPECTED_ARGS[0] {
@@ -104,7 +104,7 @@ function hello:
         let microcredits = Identifier::from_str("microcredits").unwrap();
         let records: Vec<_> = consensus
             .ledger
-            .find_records(&genesis_view_key, RecordsFilter::Unspent)
+            .find_records(&creator_view_key, RecordsFilter::Unspent)
             .unwrap()
             .filter(|(_, record)| match record.data().get(&microcredits) {
                 Some(Entry::Private(Plaintext::Literal(Literal::U64(amount), _))) => !amount.is_zero(),
@@ -125,7 +125,7 @@ function hello:
         // Create a deployment transaction for the above program.
         let deployment_transaction = Transaction::deploy(
             consensus.ledger.vm(),
-            &genesis_private_key,
+            &creator_private_key,
             &program,
             (record.clone(), fee),
             None,
@@ -138,7 +138,7 @@ function hello:
         assert_eq!(consensus.memory_pool().num_unconfirmed_transactions(), 1);
 
         // Propose the next block.
-        let next_block = consensus.propose_next_block(&genesis_private_key, &mut rng).unwrap();
+        let next_block = consensus.propose_next_block(&creator_private_key, &mut rng).unwrap();
 
         // Ensure the block is a valid next block.
         consensus.check_next_block(&next_block).unwrap();
@@ -172,7 +172,7 @@ function hello:
             for i in 0.. {
                 let transaction = Transaction::execute(
                     consensus.ledger.vm(),
-                    &genesis_private_key,
+                    &creator_private_key,
                     ("credits.aleo", "mint"),
                     inputs.iter(),
                     None,
